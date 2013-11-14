@@ -9,7 +9,7 @@ buildscript {
 }
 
 ext {
-	artifactId = 'cfnbase'
+	artifactId = 'cassandra'
 	templateBucket = 'cm-public-cfn-templates'
 }
 
