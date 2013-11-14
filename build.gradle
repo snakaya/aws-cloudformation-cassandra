@@ -54,9 +54,10 @@ task cfnInit << {
 	cloudFormation.stackParams([KeyName: project.keyName])
 }
 
-task deployDemo(dependsOn: [awsCfnMigrateStackAndWaitCompleted, cfnInit]) << {
-	def stack = cloudFormation.getStack("${project.artifactId}-demo")
+awsCfnMigrateStackAndWaitCompleted.mustRunAfter cfnInit
+task deployDemo(dependsOn: [cfnInit, awsCfnMigrateStackAndWaitCompleted]) << {
+	def stack = cloudFormation.getStack("${project.cloudFormation.stackName}-demo")
 	stack.outputs.each { println "${it.outputKey} = ${it.outputValue}" }
 }
 
-task undeployDemo(dependsOn: [awsCfnDeleteStackAndWaitCompleted, cfnInit])
+task undeployDemo(dependsOn: [cfnInit, awsCfnDeleteStackAndWaitCompleted])
