@@ -66,7 +66,7 @@
       "MinValue" : "0"
     },
     "ClusterName" : {
-      "Default" : "Demo Cluster",
+      "Default" : "Cassandra Cluster",
       "Description" : "The name of this Cassandra cluster",
       "Type" : "String"
     }

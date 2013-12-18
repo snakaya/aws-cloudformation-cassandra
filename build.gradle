@@ -4,7 +4,7 @@ buildscript {
 		maven { url 'http://public-maven.classmethod.info/release' }
 	}
 	dependencies {
-		classpath 'jp.classmethod.aws:gradle-aws-plugin:0.3'
+		classpath 'jp.classmethod.aws:gradle-aws-plugin:0.5'
 	}
 }
 
@@ -25,21 +25,21 @@ aws {
 
 // ======== release tasks ========
 
-task deployTemplate(type: jp.classmethod.aws.gradle.s3.AmazonS3FileUploadTask) {
+task uploadTemplate(type: jp.classmethod.aws.gradle.s3.AmazonS3FileUploadTask) {
 	bucketName project.templateBucket
 	key "${project.artifactId}/${project.artifactId}-${version}.template"
 	file file("${project.artifactId}.template")
 	overwrite project.version.endsWith('-SNAPSHOT')
 }
 
-task deployDemoTemplate(type: jp.classmethod.aws.gradle.s3.AmazonS3FileUploadTask) {
+task uploadDemoTemplate(type: jp.classmethod.aws.gradle.s3.AmazonS3FileUploadTask) {
 	bucketName project.templateBucket
 	key "${project.artifactId}/${project.artifactId}-demo-${version}.template"
 	file file("${project.artifactId}-demo.template")
 	overwrite project.version.endsWith('-SNAPSHOT')
 }
 
-task deploy(dependsOn: [deployTemplate, deployDemoTemplate])
+task uploadArchives(dependsOn: [uploadTemplate, uploadDemoTemplate])
 
 // ======== demo tasks ========
 
@@ -47,6 +47,7 @@ apply plugin: 'aws-cloudformation'
 cloudFormation {
 	stackName "${project.artifactId}-demo"
 	templateURL "https://${project.templateBucket}.s3.amazonaws.com/${project.artifactId}/${project.artifactId}-demo-${project.version}.template"
+	capabilityIam true
 }
 
 task cfnInit << {
@@ -56,7 +57,7 @@ task cfnInit << {
 
 awsCfnMigrateStackAndWaitCompleted.mustRunAfter cfnInit
 task deployDemo(dependsOn: [cfnInit, awsCfnMigrateStackAndWaitCompleted]) << {
-	def stack = cloudFormation.getStack("${project.cloudFormation.stackName}-demo")
+	def stack = cloudFormation.getStack(project.cloudFormation.stackName)
 	stack.outputs.each { println "${it.outputKey} = ${it.outputValue}" }
 }
 
