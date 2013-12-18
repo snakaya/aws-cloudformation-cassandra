@@ -360,7 +360,7 @@
       "Type" : "AWS::CloudFormation::Stack",
       "DependsOn" : "AttachGateway",
       "Properties" : {
-        "TemplateURL" : "https://cm-public-cfn-templates.s3.amazonaws.com/cassandra/cassandra-1.0-SNAPSHOT.template",
+        "TemplateURL" : "https://cm-public-cfn-templates.s3.amazonaws.com/cassandra/cassandra-1.0.template",
          "Parameters" : {
            "VpcId": { "Ref": "VPC" },
            "VpcCidrBlock": { "Fn::FindInMap" : [ "StackConfig", "VPC", "CIDR" ]},
