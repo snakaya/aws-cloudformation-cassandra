@@ -1,24 +1,51 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description" : "Cassandra cluster CloudFormation template file.",
+  "Description" : "Cassandra cluster CloudFormation template file.\nSeed Node *3 + Non Node *1, Amazon Linux(2017.09), Cassandra 3.x, Java 1.8.0.x",
+  "Metadata" : {
+    "AWS::CloudFormation::Interface" : {
+      "ParameterGroups" : [
+        {
+          "Label" : { "default" : "Basic Settings" },
+          "Parameters" : [ "ClusterName", "InstanceType", "KeyName" ]
+        },
+        {
+          "Label" : { "default" : "Cassandra Settings" },
+          "Parameters" : [ "PrimarySeedNodeIpAddress", "SecondarySeedNodeIpAddress" ]
+        },
+        {
+          "Label" : { "default" : "Network Settings" },
+          "Parameters" : [ "VPC", "VPCCidrBlock", "PrimarySubnetId", "SecondarySubnetId" ]
+        }
+      ],
+      "ParameterLabels" : {
+        "VPC" : { "default" : "using VPC(ID)" },
+        "VPCCidrBlock" : { "default" : "using VPC(CIDR Block)" },
+        "PrimarySubnetId" : { "default" : "Primary Subnet" },
+        "SecondarySubnetId" : { "default" : "Secondary Subnet" },
+        "PrimarySeedNodeIpAddress" : { "default" : "Seed Node's IP Address (Primary)" },
+        "SecondarySeedNodeIpAddress" : { "default" : "Seed Node's IP Address (Secondary)" },
+        "KeyName" : { "default" : "Keypair's Name" },
+        "InstanceType" : { "default" : "EC2 Instance Type" },
+        "ClusterName" : { "default" : "Cassandra Cluster Name" }
+      }
+    }
+  },
   "Parameters" : {
-    "VpcId" : {
-      "Description" : "VpcId of your existing Virtual Private Cloud (VPC)",
-      "Type" : "String"
+    "VPC" : {
+      "Description" : "Your existing Virtual Private Cloud (VPC)",
+      "Type" : "AWS::EC2::VPC::Id"
     },
-    "VpcCidrBlock" : {
-      "Description" : "CIDR block of your Virtual Private Cloud (VPC)",
-      "Type" : "String",
-      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
-      "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x."
+    "VPCCidrBlock" : {
+      "Description" : "CIDR Block of Virtual Private Cloud (VPC). ex) 172.1.0.0/16",
+      "Type" : "String"
     },
     "PrimarySubnetId" : {
       "Description" : "Primary subnet ID in your Virtual Private Cloud (VPC)",
-      "Type" : "String"
+      "Type" : "AWS::EC2::Subnet::Id"
     },
     "SecondarySubnetId" : {
       "Description" : "Secondary subnet ID in your Virtual Private Cloud (VPC)",
-      "Type" : "String"
+      "Type" : "AWS::EC2::Subnet::Id"
     },
     "PrimarySeedNodeIpAddress" : {
       "Description" : "The IP address of seed node in primary subnet.",
@@ -32,55 +59,70 @@
       "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})",
       "ConstraintDescription": "must be a valid IP address of the form x.x.x.x."
     },
-    "PrimaryAvailabilityZone" : {
-      "Description" : "AZ of Primary subnet",
-      "Type" : "String"
-    },
-    "SecondaryAvailabilityZone" : {
-      "Description" : "AZ of Secondary subnet",
-      "Type" : "String"
-    },
     "KeyName" : {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
-      "Type" : "String",
-      "MinLength" : "1",
-      "MaxLength" : "64",
-      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
-      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Default": ""
     },
     "InstanceType": {
       "Description": "EC2 instance type",
       "Type": "String",
-      "Default": "t1.micro",
+      "Default": "m3.medium",
       "AllowedValues": [
-        "t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge",
-        "m2.4xlarge", "c1.medium", "c1.xlarge", "cc1.4xlarge", "cc2.8xlarge", "cg1.4xlarge"
+                "t2.small",
+                "t2.micro",
+                "t2.medium",
+                "t2.large",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "c3.large",
+                "c3.xlarge",
+                "c3.2xlarge",
+                "c3.4xlarge",
+                "c3.8xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge"
       ],
       "ConstraintDescription": "must be a valid EC2 instance type."
     },
-    "FleetSize" : {
-      "Description" : "Number of EC2 instances to launch for the Cassandra server",
-      "Type" : "Number",
-      "Default" : "2",
-      "MaxValue" : "10",
-      "MinValue" : "0"
-    },
     "ClusterName" : {
-      "Default" : "Cassandra Cluster",
+      "Default" : "Cassandra-Cluster",
       "Description" : "The name of this Cassandra cluster",
       "Type" : "String"
     }
   },
   "Mappings" : {
     "AWSAmazonLinuxAMI": {
-      "us-east-1":      { "name":"Virginia",   "201303": "ami-3275ee5b", "201309": "ami-35792c5c" },
-      "us-west-2":      { "name":"Oregon",     "201303": "ami-ecbe2adc", "201309": "ami-d03ea1e0" },
-      "us-west-1":      { "name":"California", "201303": "ami-66d1fc23", "201309": "ami-687b4f2d" },
-      "eu-west-1":      { "name":"Ireland",    "201303": "ami-44939930", "201309": "ami-149f7863" },
-      "ap-southeast-1": { "name":"Singapole",  "201303": "ami-aa9ed2f8", "201309": "ami-14f2b946" },
-      "ap-southeast-2": { "name":"Sydney",     "201303": "ami-363eaf0c", "201309": "ami-a148d59b" },
-      "ap-northeast-1": { "name":"Tokyo",      "201303": "ami-173fbf16", "201309": "ami-3561fe34" },
-      "sa-east-1":      { "name":"SaoPaulo",   "201303": "ami-dd6bb0c0", "201309": "ami-9f6ec982" }
+      "us-east-1":        { "name":"Virginia",  "201709": "ami-55ef662f" },
+      "us-east-2":        { "name":"Ohio",  "201709": "ami-15e9c770" },
+      "us-west-1":        { "name":"California",  "201709": "ami-a51f27c5" },
+      "us-west-2":        { "name":"Oregon",  "201709": "ami-bf4193c7" },
+      "ca-central-1":     { "name":"Canada",  "201709": "ami-d29e25b6" },
+      "eu-west-1":        { "name":"Ireland",  "201709": "ami-1a962263" },
+      "eu-west-2":        { "name":"London",  "201709": "ami-e7d6c983" },
+      "eu-central-1":     { "name":"Frankfurt",  "201709": "ami-bf2ba8d0" },
+      "ap-northeast-1": { "name":"Tokyo", "201709": "ami-da9e2cbc" },
+      "ap-northeast-2": { "name":"Seoul", "201709": "ami-1196317f" },
+      "ap-southeast-1": { "name":"Singapole", "201709": "ami-ff4ea59d" },
+      "ap-southeast-2": { "name":"Sydney", "201709": "ami-ff4ea59d" },
+      "ap-south-1":       { "name":"Mumbai", "201709": "ami-d5c18eba" },
+      "sa-east-1":          { "name":"SaoPaulo", "201709": "ami-286f2a44" }
     }
   },
   "Resources" : {
@@ -119,28 +161,36 @@
     "CassandraSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
-        "VpcId" : { "Ref" : "VpcId" },
+        "VpcId" : { "Ref" : "VPC" },
         "GroupDescription" : "Allow all communications in VPC",
         "SecurityGroupIngress" : [
-          { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Ref" : "VpcCidrBlock" } },
-          { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Ref" : "VpcCidrBlock" } },
-          { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : { "Ref" : "VpcCidrBlock" } }
+          { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Ref" : "VPCCidrBlock" } },
+          { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Ref" : "VPCCidrBlock" } },
+          { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : { "Ref" : "VPCCidrBlock" } },
+          { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
+          { "IpProtocol" : "tcp", "FromPort" : "9042", "ToPort" : "9042", "CidrIp" : { "Ref" : "VPCCidrBlock" } }
         ]
       }
     },
 
     "PrimarySeedNodeInstance" : {
       "Type" : "AWS::EC2::Instance",
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : "PT5M"
+        }
+      },
       "Properties" : {
         "InstanceType": { "Ref" : "InstanceType" },
         "KeyName": { "Ref" : "KeyName" },
-        "ImageId": { "Fn::FindInMap" : [ "AWSAmazonLinuxAMI", { "Ref" : "AWS::Region" }, "201309" ]},
+        "ImageId": { "Fn::FindInMap" : [ "AWSAmazonLinuxAMI", { "Ref" : "AWS::Region" }, "201709" ]},
         "SubnetId" : { "Ref" : "PrimarySubnetId" },
         "PrivateIpAddress" : { "Ref" : "PrimarySeedNodeIpAddress" },
         "SecurityGroupIds": [
           { "Ref" : "CassandraSecurityGroup" }
         ],
         "IamInstanceProfile": { "Ref" : "CassandraProfile" },
+        "InstanceInitiatedShutdownBehavior" : "stop",
         "Tags" : [
           { "Key" : "Name", "Value" : "Cassandra-Seed1" }
         ],
@@ -148,19 +198,13 @@
           "#! /bin/bash -v\n",
           "yum update -y\n",
 
-          "# Helper function\n",
-          "function error_exit\n",
-          "{\n",
-          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "CassandraPrimarySeedWaitHandle" }, "'\n",
-          "  exit 1\n",
-          "}\n",
-
           "# Install packages\n",
-          "/opt/aws/bin/cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r PrimarySeedNodeInstance ",
+          "/opt/aws/bin/cfn-init -v --stack ", { "Ref" : "AWS::StackName" }, " --resource PrimarySeedNodeInstance ",
           "    --region ", { "Ref" : "AWS::Region" }, "\n",
 
           "# All is well so signal success\n",
-          "/opt/aws/bin/cfn-signal -e $? -r \"PrimarySeedNodeInstance setup complete\" '", { "Ref" : "CassandraPrimarySeedWaitHandle" }, "'\n"
+          "/opt/aws/bin/cfn-signal -e $? --stack ", { "Ref" : "AWS::StackName" }, " --resource PrimarySeedNodeInstance ",
+          "    --region ", { "Ref" : "AWS::Region" }, "\n",
         ]]}}
       },
       "Metadata" : {
@@ -168,7 +212,7 @@
           "configSets" : {
             "default" : [
               "configure_hosts",
-              "install_java7",
+              "install_java8",
               "install_repo",
               "install_cassandra"
             ]
@@ -184,15 +228,15 @@
               }
             }
           },
-          "install_java7" : {
+          "install_java8" : {
             "packages" : {
               "yum" : {
-                "java-1.7.0-openjdk-devel" : []
+                "java-1.8.0-openjdk.x86_64" : []
               }
             },
             "commands" : {
-              "use_java7" : {
-                "command" : "alternatives --set java /usr/lib/jvm/jre-1.7.0-openjdk.x86_64/bin/java"
+              "use_java8" : {
+                "command" : "alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java"
               }
             }
           },
@@ -215,7 +259,7 @@
           "install_cassandra" : {
             "packages" : {
               "yum" : {
-                "dsc20" : []
+                "dsc30" : []
               }
             },
             "files" : {
@@ -227,6 +271,7 @@
                   "max_hint_window_in_ms: 10800000\n",
                   "hinted_handoff_throttle_in_kb: 1024\n",
                   "max_hints_delivery_threads: 2\n",
+                  "hints_directory: /var/lib/cassandra/hints\n",
                   "authenticator: AllowAllAuthenticator\n",
                   "authorizer: AllowAllAuthorizer\n",
                   "permissions_validity_in_ms: 2000\n",
@@ -249,7 +294,6 @@
                   "          - seeds: \"", { "Ref" : "PrimarySeedNodeIpAddress" }, ",", { "Ref" : "SecondarySeedNodeIpAddress" }, "\"\n",
                   "concurrent_reads: 32\n",
                   "concurrent_writes: 32\n",
-                  "memtable_flush_queue_size: 4\n",
                   "trickle_fsync: false\n",
                   "trickle_fsync_interval_in_kb: 10240\n",
                   "storage_port: 7000\n",
@@ -258,7 +302,7 @@
                   "start_native_transport: true\n",
                   "native_transport_port: 9042\n",
                   "start_rpc: true\n",
-                  "rpc_address: 0.0.0.0\n",
+                  "rpc_address: ", { "Ref" : "PrimarySeedNodeIpAddress" }, "\n",
                   "rpc_port: 9160\n",
                   "rpc_keepalive: true\n",
                   "rpc_server_type: sync\n",
@@ -269,10 +313,7 @@
                   "tombstone_warn_threshold: 1000\n",
                   "tombstone_failure_threshold: 100000\n",
                   "column_index_size_in_kb: 64\n",
-                  "in_memory_compaction_limit_in_mb: 64\n",
-                  "multithreaded_compaction: false\n",
                   "compaction_throughput_mb_per_sec: 16\n",
-                  "compaction_preheat_key_cache: true\n",
                   "read_request_timeout_in_ms: 5000\n",
                   "range_request_timeout_in_ms: 10000\n",
                   "write_request_timeout_in_ms: 2000\n",
@@ -296,8 +337,7 @@
                   "    keystore: conf/.keystore\n",
                   "    keystore_password: cassandra\n",
                   "internode_compression: all\n",
-                  "inter_dc_tcp_nodelay: false\n",
-                  "preheat_kernel_page_cache: false\n"
+                  "inter_dc_tcp_nodelay: false\n"
                 ]]},
                 "mode"    : "000644",
                 "owner"   : "cassandra",
@@ -313,30 +353,26 @@
         }
       }
     },
-    "CassandraPrimarySeedWaitHandle" : {
-      "Type" : "AWS::CloudFormation::WaitConditionHandle"
-    },
-    "CassandraPrimarySeedWaitCondition" : {
-      "Type" : "AWS::CloudFormation::WaitCondition",
-      "DependsOn" : "PrimarySeedNodeInstance",
-      "Properties" : {
-        "Handle" : {"Ref" : "CassandraPrimarySeedWaitHandle"},
-        "Timeout" : "3600"
-      }
-    },
 
     "SecondarySeedNodeInstance" : {
       "Type" : "AWS::EC2::Instance",
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : "PT5M"
+        }
+      },
+      "DependsOn" : "PrimarySeedNodeInstance",
       "Properties" : {
         "InstanceType": { "Ref" : "InstanceType" },
         "KeyName": { "Ref" : "KeyName" },
-        "ImageId": { "Fn::FindInMap" : [ "AWSAmazonLinuxAMI", { "Ref" : "AWS::Region" }, "201309" ]},
+        "ImageId": { "Fn::FindInMap" : [ "AWSAmazonLinuxAMI", { "Ref" : "AWS::Region" }, "201709" ]},
         "SubnetId" : { "Ref" : "SecondarySubnetId" },
         "PrivateIpAddress" : { "Ref" : "SecondarySeedNodeIpAddress" },
         "SecurityGroupIds": [
           { "Ref" : "CassandraSecurityGroup" }
         ],
         "IamInstanceProfile": { "Ref" : "CassandraProfile" },
+        "InstanceInitiatedShutdownBehavior" : "stop",
         "Tags" : [
           { "Key" : "Name", "Value" : "Cassandra-Seed2" }
         ],
@@ -344,19 +380,13 @@
           "#! /bin/bash -v\n",
           "yum update -y\n",
 
-          "# Helper function\n",
-          "function error_exit\n",
-          "{\n",
-          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "CassandraSecondarySeedWaitHandle" }, "'\n",
-          "  exit 1\n",
-          "}\n",
-
           "# Install packages\n",
-          "/opt/aws/bin/cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r SecondarySeedNodeInstance ",
+          "/opt/aws/bin/cfn-init -v --stack ", { "Ref" : "AWS::StackName" }, " --resource SecondarySeedNodeInstance ",
           "    --region ", { "Ref" : "AWS::Region" }, "\n",
 
           "# All is well so signal success\n",
-          "/opt/aws/bin/cfn-signal -e $? -r \"SecondarySeedNodeInstance setup complete\" '", { "Ref" : "CassandraSecondarySeedWaitHandle" }, "'\n"
+          "/opt/aws/bin/cfn-signal -e $? --stack ", { "Ref" : "AWS::StackName" }, " --resource SecondarySeedNodeInstance ",
+          "    --region ", { "Ref" : "AWS::Region" }, "\n",
         ]]}}
       },
       "Metadata" : {
@@ -364,7 +394,7 @@
           "configSets" : {
             "default" : [
               "configure_hosts",
-              "install_java7",
+              "install_java8",
               "install_repo",
               "install_cassandra"
             ]
@@ -380,15 +410,15 @@
               }
             }
           },
-          "install_java7" : {
+          "install_java8" : {
             "packages" : {
               "yum" : {
-                "java-1.7.0-openjdk-devel" : []
+                "java-1.8.0-openjdk.x86_64" : []
               }
             },
             "commands" : {
-              "use_java7" : {
-                "command" : "alternatives --set java /usr/lib/jvm/jre-1.7.0-openjdk.x86_64/bin/java"
+              "use_java8" : {
+                "command" : "alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java"
               }
             }
           },
@@ -411,7 +441,7 @@
           "install_cassandra" : {
             "packages" : {
               "yum" : {
-                "dsc20" : []
+                "dsc30" : []
               }
             },
             "files" : {
@@ -423,6 +453,7 @@
                   "max_hint_window_in_ms: 10800000\n",
                   "hinted_handoff_throttle_in_kb: 1024\n",
                   "max_hints_delivery_threads: 2\n",
+                  "hints_directory: /var/lib/cassandra/hints\n",
                   "authenticator: AllowAllAuthenticator\n",
                   "authorizer: AllowAllAuthorizer\n",
                   "permissions_validity_in_ms: 2000\n",
@@ -445,7 +476,6 @@
                   "          - seeds: \"", { "Ref" : "PrimarySeedNodeIpAddress" }, ",", { "Ref" : "SecondarySeedNodeIpAddress" }, "\"\n",
                   "concurrent_reads: 32\n",
                   "concurrent_writes: 32\n",
-                  "memtable_flush_queue_size: 4\n",
                   "trickle_fsync: false\n",
                   "trickle_fsync_interval_in_kb: 10240\n",
                   "storage_port: 7000\n",
@@ -454,7 +484,7 @@
                   "start_native_transport: true\n",
                   "native_transport_port: 9042\n",
                   "start_rpc: true\n",
-                  "rpc_address: 0.0.0.0\n",
+                  "rpc_address: ",{ "Ref" : "SecondarySeedNodeIpAddress" }, "\n",
                   "rpc_port: 9160\n",
                   "rpc_keepalive: true\n",
                   "rpc_server_type: sync\n",
@@ -465,10 +495,7 @@
                   "tombstone_warn_threshold: 1000\n",
                   "tombstone_failure_threshold: 100000\n",
                   "column_index_size_in_kb: 64\n",
-                  "in_memory_compaction_limit_in_mb: 64\n",
-                  "multithreaded_compaction: false\n",
                   "compaction_throughput_mb_per_sec: 16\n",
-                  "compaction_preheat_key_cache: true\n",
                   "read_request_timeout_in_ms: 5000\n",
                   "range_request_timeout_in_ms: 10000\n",
                   "write_request_timeout_in_ms: 2000\n",
@@ -492,8 +519,7 @@
                   "    keystore: conf/.keystore\n",
                   "    keystore_password: cassandra\n",
                   "internode_compression: all\n",
-                  "inter_dc_tcp_nodelay: false\n",
-                  "preheat_kernel_page_cache: false\n"
+                  "inter_dc_tcp_nodelay: false\n"
                 ]]},
                 "mode"    : "000644",
                 "owner"   : "cassandra",
@@ -509,73 +535,39 @@
         }
       }
     },
-    "CassandraSecondarySeedWaitHandle" : {
-      "Type" : "AWS::CloudFormation::WaitConditionHandle"
-    },
-    "CassandraSecondarySeedWaitCondition" : {
-      "Type" : "AWS::CloudFormation::WaitCondition",
-      "DependsOn" : "SecondarySeedNodeInstance",
-      "Properties" : {
-        "Handle" : {"Ref" : "CassandraSecondarySeedWaitHandle"},
-        "Timeout" : "3600"
-      }
-    },
-
-    "CassandraNonSeedFleet" : {
-      "Type" : "AWS::AutoScaling::AutoScalingGroup",
-      "UpdatePolicy" : {
-        "AutoScalingRollingUpdate" : {
-          "MaxBatchSize" : "1",
-          "MinInstancesInService" : "1",
-          "PauseTime" : "PT2M30S"
+    
+    "CassandraNode1" : {
+      "Type" : "AWS::EC2::Instance",
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : "PT5M"
         }
       },
-      "Properties" : {
-        "AvailabilityZones" : [
-          { "Ref" : "PrimaryAvailabilityZone" },
-          { "Ref" : "SecondaryAvailabilityZone" }
-        ],
-        "VPCZoneIdentifier" : [
-          { "Ref" : "PrimarySubnetId" },
-          { "Ref" : "SecondarySubnetId" }
-        ],
-        "LaunchConfigurationName" : { "Ref" : "CassandraNonSeedLaunchConfig"  },
-        "MinSize" : { "Ref" : "FleetSize" },
-        "MaxSize" : { "Ref" : "FleetSize" },
-        "DesiredCapacity" : { "Ref" : "FleetSize" },
-        "Tags" : [
-          { "Key" : "Name", "Value" : "Cassandra", "PropagateAtLaunch" : "true" }
-        ]
-      }
-    },
-    "CassandraNonSeedLaunchConfig"  : {
-      "Type" : "AWS::AutoScaling::LaunchConfiguration",
+      "DependsOn" : "SecondarySeedNodeInstance",
       "Properties" : {
         "InstanceType": { "Ref" : "InstanceType" },
         "KeyName": { "Ref" : "KeyName" },
-        "ImageId": { "Fn::FindInMap" : [ "AWSAmazonLinuxAMI", { "Ref" : "AWS::Region" }, "201309" ]},
-        "SecurityGroups": [
+        "ImageId": { "Fn::FindInMap" : [ "AWSAmazonLinuxAMI", { "Ref" : "AWS::Region" }, "201709" ]},
+        "SubnetId" : { "Ref" : "PrimarySubnetId" },
+        "SecurityGroupIds": [
           { "Ref" : "CassandraSecurityGroup" }
         ],
         "IamInstanceProfile": { "Ref" : "CassandraProfile" },
-        "InstanceMonitoring" : "false",
+        "InstanceInitiatedShutdownBehavior" : "stop",
+        "Tags" : [
+          { "Key" : "Name", "Value" : "Cassandra-Node1" }
+        ],
         "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#! /bin/bash -v\n",
           "yum update -y\n",
 
-          "# Helper function\n",
-          "function error_exit\n",
-          "{\n",
-          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "CassandraNonSeedWaitHandle" }, "'\n",
-          "  exit 1\n",
-          "}\n",
-
           "# Install packages\n",
-          "/opt/aws/bin/cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r CassandraNonSeedLaunchConfig ",
+          "/opt/aws/bin/cfn-init -v --stack ", { "Ref" : "AWS::StackName" }, " --resource CassandraNode1 ",
           "    --region ", { "Ref" : "AWS::Region" }, "\n",
 
           "# All is well so signal success\n",
-          "/opt/aws/bin/cfn-signal -e $? -r \"Cassandra instance setup complete\" '", { "Ref" : "CassandraNonSeedWaitHandle" }, "'\n"
+          "/opt/aws/bin/cfn-signal -e $? --stack ", { "Ref" : "AWS::StackName" }, " --resource CassandraNode1 ",
+          "    --region ", { "Ref" : "AWS::Region" }, "\n",
         ]]}}
       },
       "Metadata" : {
@@ -583,7 +575,7 @@
           "configSets" : {
             "default" : [
               "configure_hosts",
-              "install_java7",
+              "install_java8",
               "install_repo",
               "install_cassandra"
             ]
@@ -599,15 +591,15 @@
               }
             }
           },
-          "install_java7" : {
+          "install_java8" : {
             "packages" : {
               "yum" : {
-                "java-1.7.0-openjdk-devel" : []
+                "java-1.8.0-openjdk.x86_64" : []
               }
             },
             "commands" : {
-              "use_java7" : {
-                "command" : "alternatives --set java /usr/lib/jvm/jre-1.7.0-openjdk.x86_64/bin/java"
+              "use_java8" : {
+                "command" : "alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java"
               }
             }
           },
@@ -630,7 +622,7 @@
           "install_cassandra" : {
             "packages" : {
               "yum" : {
-                "dsc20" : []
+                "dsc30" : []
               }
             },
             "files" : {
@@ -642,6 +634,7 @@
                   "max_hint_window_in_ms: 10800000\n",
                   "hinted_handoff_throttle_in_kb: 1024\n",
                   "max_hints_delivery_threads: 2\n",
+                  "hints_directory: /var/lib/cassandra/hints\n",
                   "authenticator: AllowAllAuthenticator\n",
                   "authorizer: AllowAllAuthorizer\n",
                   "permissions_validity_in_ms: 2000\n",
@@ -664,7 +657,6 @@
                   "          - seeds: \"", { "Ref" : "PrimarySeedNodeIpAddress" }, ",", { "Ref" : "SecondarySeedNodeIpAddress" }, "\"\n",
                   "concurrent_reads: 32\n",
                   "concurrent_writes: 32\n",
-                  "memtable_flush_queue_size: 4\n",
                   "trickle_fsync: false\n",
                   "trickle_fsync_interval_in_kb: 10240\n",
                   "storage_port: 7000\n",
@@ -673,7 +665,7 @@
                   "start_native_transport: true\n",
                   "native_transport_port: 9042\n",
                   "start_rpc: true\n",
-                  "rpc_address: 0.0.0.0\n",
+                  "rpc_address: #LISTEN_ADDRESS#\n",
                   "rpc_port: 9160\n",
                   "rpc_keepalive: true\n",
                   "rpc_server_type: sync\n",
@@ -684,10 +676,7 @@
                   "tombstone_warn_threshold: 1000\n",
                   "tombstone_failure_threshold: 100000\n",
                   "column_index_size_in_kb: 64\n",
-                  "in_memory_compaction_limit_in_mb: 64\n",
-                  "multithreaded_compaction: false\n",
                   "compaction_throughput_mb_per_sec: 16\n",
-                  "compaction_preheat_key_cache: true\n",
                   "read_request_timeout_in_ms: 5000\n",
                   "range_request_timeout_in_ms: 10000\n",
                   "write_request_timeout_in_ms: 2000\n",
@@ -711,8 +700,7 @@
                   "    keystore: conf/.keystore\n",
                   "    keystore_password: cassandra\n",
                   "internode_compression: all\n",
-                  "inter_dc_tcp_nodelay: false\n",
-                  "preheat_kernel_page_cache: false\n"
+                  "inter_dc_tcp_nodelay: false\n"
                 ]]},
                 "mode"    : "000644",
                 "owner"   : "cassandra",
@@ -731,18 +719,6 @@
             }
           }
         }
-      }
-    },
-    "CassandraNonSeedWaitHandle" : {
-      "Type" : "AWS::CloudFormation::WaitConditionHandle"
-    },
-    "CassandraNonSeedWaitCondition" : {
-      "Type" : "AWS::CloudFormation::WaitCondition",
-      "DependsOn" : "CassandraNonSeedFleet",
-      "Properties" : {
-        "Handle" : {"Ref" : "CassandraNonSeedWaitHandle"},
-        "Timeout" : "3600",
-        "Count"   : { "Ref" : "FleetSize" }
       }
     }
   }
